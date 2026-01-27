@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:MemoShareApp.ViewModels"
+             x:Class="MemoShareApp.Views.RegisterPage"
+             x:DataType="viewmodels:RegisterViewModel"
+             Title="{Binding Title}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="30" Spacing="20" VerticalOptions="Center">
+            
+            <Label Text="新規登録" 
+                   FontSize="24" 
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,20"/>
+
+            <Entry Placeholder="ユーザー名"
+                   Text="{Binding Username}"
+                   Keyboard="Text"
+                   ReturnType="Next"/>
+
+            <Entry Placeholder="メールアドレス"
+                   Text="{Binding Email}"
+                   Keyboard="Email"
+                   ReturnType="Next"/>
+
+            <Entry Placeholder="パスワード"
+                   Text="{Binding Password}"
+                   IsPassword="True"
+                   ReturnType="Next"/>
+
+            <Entry Placeholder="パスワード（確認）"
+                   Text="{Binding ConfirmPassword}"
+                   IsPassword="True"
+                   ReturnType="Done"/>
+
+            <Label Text="{Binding ErrorMessage}"
+                   TextColor="Red"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}"
+                   HorizontalOptions="Center"/>
+
+            <Button Text="登録"
+                    Command="{Binding RegisterCommand}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"/>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               Color="{StaticResource Primary}"/>
+
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="5">
+                <Label Text="すでにアカウントをお持ちですか？" VerticalOptions="Center"/>
+                <Label Text="ログイン" 
+                       TextColor="{StaticResource Primary}"
+                       TextDecorations="Underline"
+                       VerticalOptions="Center">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding GoToLoginCommand}"/>
+                    </Label.GestureRecognizers>
+                </Label>
+            </HorizontalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

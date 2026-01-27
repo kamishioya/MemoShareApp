@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:MemoShareApp.ViewModels"
+             xmlns:models="clr-namespace:MemoShareApp.Models"
+             x:Class="MemoShareApp.Views.MemoDetailPage"
+             x:DataType="viewmodels:MemoDetailViewModel"
+             Title="{Binding Title}">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="保存" Command="{Binding SaveCommand}"/>
+        <ToolbarItem Text="削除" 
+                     Command="{Binding DeleteCommand}"
+                     IsEnabled="{Binding IsNewMemo, Converter={StaticResource InvertedBoolConverter}}"/>
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            
+            <Label Text="タイトル" FontSize="14" TextColor="Gray"/>
+            <Entry Text="{Binding MemoTitle}"
+                   Placeholder="メモのタイトル"
+                   FontSize="18"/>
+
+            <Label Text="内容" FontSize="14" TextColor="Gray"/>
+            <Editor Text="{Binding Content}"
+                    Placeholder="メモの内容を入力..."
+                    HeightRequest="200"
+                    FontSize="16"/>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="共有する" VerticalOptions="Center"/>
+                <Switch IsToggled="{Binding IsShared}"/>
+            </HorizontalStackLayout>
+
+            <BoxView HeightRequest="1" Color="LightGray" Margin="0,10"/>
+
+            <Label Text="ユーザーと共有" 
+                   FontSize="16" 
+                   FontAttributes="Bold"
+                   IsVisible="{Binding IsNewMemo, Converter={StaticResource InvertedBoolConverter}}"/>
+
+            <CollectionView ItemsSource="{Binding AvailableUsers}"
+                            IsVisible="{Binding IsNewMemo, Converter={StaticResource InvertedBoolConverter}}"
+                            HeightRequest="150">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:User">
+                        <Frame Margin="5" Padding="10" HasShadow="True" CornerRadius="8">
+                            <HorizontalStackLayout Spacing="10">
+                                <Label Text="{Binding DisplayName}" 
+                                       VerticalOptions="Center"
+                                       FontSize="14"/>
+                                <Button Text="共有"
+                                        FontSize="12"
+                                        Padding="10,5"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:MemoDetailViewModel}}, Path=ShareWithUserCommand}"
+                                        CommandParameter="{Binding .}"
+                                        HorizontalOptions="EndAndExpand"/>
+                            </HorizontalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               Color="{StaticResource Primary}"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
