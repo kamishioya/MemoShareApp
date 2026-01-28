@@ -1,4 +1,5 @@
 ﻿using MemoShareApp.Models;
+using MemoShareApp.Data;
 
 namespace MemoShareApp.Services;
 
@@ -60,78 +61,63 @@ public interface IMemoService
 
 public class MemoService : IMemoService
 {
-    private readonly List<Memo> _memos = new();
+    private readonly AppDatabase _database;
     private readonly IAuthService _authService;
 
-    public MemoService(IAuthService authService)
+    public MemoService(AppDatabase database, IAuthService authService)
     {
+        _database = database;
         _authService = authService;
-        InitializeSampleData();
-    }
-
-    /// <summary>
-    /// サンプルデータを初期化します。
-    /// </summary>
-    private void InitializeSampleData()
-    {
-        _memos.AddRange(new[]
-        {
-            new Memo
-            {
-                Title = "買い物リスト",
-                Content = "牛乳、卵、パン、野菜",
-                AuthorId = "user1",
-                AuthorName = "テストユーザー1",
-                IsShared = true
-            },
-            new Memo
-            {
-                Title = "会議メモ",
-                Content = "次回の会議は来週月曜日",
-                AuthorId = "user1",
-                AuthorName = "テストユーザー1"
-            },
-            new Memo
-            {
-                Title = "共有メモ",
-                Content = "これは共有されたメモです",
-                AuthorId = "user2",
-                AuthorName = "テストユーザー2",
-                IsShared = true,
-                SharedWithUserIds = new List<string> { "user1" }
-            }
-        });
     }
 
     /// <summary>
     /// 現在のユーザーのメモ一覧を取得します。
     /// </summary>
     /// <returns>ユーザーのメモ一覧</returns>
-    public Task<List<Memo>> GetMyMemosAsync()
+    public async Task<List<Memo>> GetMyMemosAsync()
     {
         var currentUser = _authService.CurrentUser;
         if (currentUser == null)
-            return Task.FromResult(new List<Memo>());
+            return new List<Memo>();
 
-        var myMemos = _memos.Where(m => m.AuthorId == currentUser.Id).ToList();
-        return Task.FromResult(myMemos);
+        return await _database.GetMemosByAuthorAsync(currentUser.Id);
     }
 
     /// <summary>
     /// 共有されているメモ一覧を取得します。
     /// </summary>
     /// <returns>共有メモ一覧</returns>
-    public Task<List<Memo>> GetSharedMemosAsync()
+    public async Task<List<Memo>> GetSharedMemosAsync()
     {
         var currentUser = _authService.CurrentUser;
         if (currentUser == null)
-            return Task.FromResult(new List<Memo>());
+            return new List<Memo>();
 
-        var sharedMemos = _memos.Where(m => 
-            m.IsShared && 
-            (m.SharedWithUserIds.Contains(currentUser.Id) || m.AuthorId == currentUser.Id))
+        // 自分が作成した共有メモ
+        var mySharedMemos = await _database.GetMemosByAuthorAsync(currentUser.Id);
+        mySharedMemos = mySharedMemos.Where(m => m.IsShared).ToList();
+
+        // 自分に共有されたメモ
+        var sharedWithMe = await _database.GetSharedMemosForUserAsync(currentUser.Id);
+        var sharedMemoIds = sharedWithMe.Select(s => s.MemoId).ToList();
+        
+        var allMemos = await _database.GetMemosAsync();
+        var othersSharedMemos = allMemos.Where(m => sharedMemoIds.Contains(m.Id)).ToList();
+
+        // 結合して重複を除去
+        var result = mySharedMemos.Concat(othersSharedMemos)
+            .GroupBy(m => m.Id)
+            .Select(g => g.First())
             .ToList();
-        return Task.FromResult(sharedMemos);
+
+        // SharedWithUserIdsを設定
+        foreach (var memo in result)
+        {
+            var shares = await _database.GetMemoSharesAsync(memo.Id);
+            memo.SharedWithUserIds = shares.Select(s => s.UserId).ToList();
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -139,10 +125,15 @@ public class MemoService : IMemoService
     /// </summary>
     /// <param name="id">メモID</param>
     /// <returns>メモ、存在しない場合はnull</returns>
-    public Task<Memo?> GetMemoByIdAsync(string id)
+    public async Task<Memo?> GetMemoByIdAsync(string id)
     {
-        var memo = _memos.FirstOrDefault(m => m.Id == id);
-        return Task.FromResult(memo);
+        var memo = await _database.GetMemoByIdAsync(id);
+        if (memo != null)
+        {
+            var shares = await _database.GetMemoSharesAsync(memo.Id);
+            memo.SharedWithUserIds = shares.Select(s => s.UserId).ToList();
+        }
+        return memo;
     }
 
     /// <summary>
@@ -150,7 +141,7 @@ public class MemoService : IMemoService
     /// </summary>
     /// <param name="memo">作成するメモ</param>
     /// <returns>作成されたメモ</returns>
-    public Task<Memo> CreateMemoAsync(Memo memo)
+    public async Task<Memo> CreateMemoAsync(Memo memo)
     {
         var currentUser = _authService.CurrentUser;
         if (currentUser != null)
@@ -160,8 +151,9 @@ public class MemoService : IMemoService
         }
         memo.CreatedAt = DateTime.Now;
         memo.UpdatedAt = DateTime.Now;
-        _memos.Add(memo);
-        return Task.FromResult(memo);
+        
+        await _database.InsertMemoAsync(memo);
+        return memo;
     }
 
     /// <summary>
@@ -169,31 +161,32 @@ public class MemoService : IMemoService
     /// </summary>
     /// <param name="memo">更新するメモ</param>
     /// <returns>更新されたメモ</returns>
-    public Task<Memo> UpdateMemoAsync(Memo memo)
+    public async Task<Memo> UpdateMemoAsync(Memo memo)
     {
-        var existing = _memos.FirstOrDefault(m => m.Id == memo.Id);
+        var existing = await _database.GetMemoByIdAsync(memo.Id);
         if (existing != null)
         {
             existing.Title = memo.Title;
             existing.Content = memo.Content;
             existing.IsShared = memo.IsShared;
             existing.UpdatedAt = DateTime.Now;
+            
+            await _database.UpdateMemoAsync(existing);
         }
-        return Task.FromResult(memo);
+        return memo;
     }
 
     /// <summary>
     /// 指定されたIDのメモを削除します。
     /// </summary>
     /// <param name="id">削除するメモのID</param>
-    public Task DeleteMemoAsync(string id)
+    public async Task DeleteMemoAsync(string id)
     {
-        var memo = _memos.FirstOrDefault(m => m.Id == id);
+        var memo = await _database.GetMemoByIdAsync(id);
         if (memo != null)
         {
-            _memos.Remove(memo);
+            await _database.DeleteMemoAsync(memo);
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -201,15 +194,24 @@ public class MemoService : IMemoService
     /// </summary>
     /// <param name="memoId">共有するメモのID</param>
     /// <param name="userId">共有先のユーザーID</param>
-    public Task ShareMemoAsync(string memoId, string userId)
+    public async Task ShareMemoAsync(string memoId, string userId)
     {
-        var memo = _memos.FirstOrDefault(m => m.Id == memoId);
-        if (memo != null && !memo.SharedWithUserIds.Contains(userId))
+        var memo = await _database.GetMemoByIdAsync(memoId);
+        if (memo != null)
         {
-            memo.SharedWithUserIds.Add(userId);
-            memo.IsShared = true;
+            var shares = await _database.GetMemoSharesAsync(memoId);
+            if (!shares.Any(s => s.UserId == userId))
+            {
+                await _database.InsertMemoShareAsync(new MemoShare
+                {
+                    MemoId = memoId,
+                    UserId = userId
+                });
+                
+                memo.IsShared = true;
+                await _database.UpdateMemoAsync(memo);
+            }
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -217,17 +219,20 @@ public class MemoService : IMemoService
     /// </summary>
     /// <param name="memoId">対象のメモID</param>
     /// <param name="userId">共有を解除するユーザーID</param>
-    public Task UnshareMemoAsync(string memoId, string userId)
+    public async Task UnshareMemoAsync(string memoId, string userId)
     {
-        var memo = _memos.FirstOrDefault(m => m.Id == memoId);
-        if (memo != null)
+        await _database.DeleteMemoShareAsync(memoId, userId);
+        
+        var shares = await _database.GetMemoSharesAsync(memoId);
+        if (shares.Count == 0)
         {
-            memo.SharedWithUserIds.Remove(userId);
-            if (memo.SharedWithUserIds.Count == 0)
+            var memo = await _database.GetMemoByIdAsync(memoId);
+            if (memo != null)
             {
                 memo.IsShared = false;
+                await _database.UpdateMemoAsync(memo);
             }
         }
-        return Task.CompletedTask;
     }
 }
+

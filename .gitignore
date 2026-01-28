@@ -116,3 +116,12 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Environment files
+.env
+.env.*
+*.env
+env/
+.env.local
+.env.development
+.env.production

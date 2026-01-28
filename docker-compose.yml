@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # PostgreSQLデータベース
+  postgres:
+    image: postgres:16-alpine
+    container_name: memoshare_postgres
+    environment:
+      POSTGRES_DB: memosharedb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - memoshare_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ASP.NET Core Web API
+  api:
+    build:
+      context: .
+      dockerfile: MemoShareApp.API/Dockerfile
+    container_name: memoshare_api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=memosharedb;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-YourSuperSecretKeyForJWTTokenGeneration123456}
+      - JwtSettings__Issuer=MemoShareAPI
+      - JwtSettings__Audience=MemoShareApp
+      - JwtSettings__ExpiryMinutes=43200
+    ports:
+      - "5000:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - memoshare_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  memoshare_network:
+    driver: bridge
