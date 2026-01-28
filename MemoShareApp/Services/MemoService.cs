@@ -4,13 +4,57 @@ namespace MemoShareApp.Services;
 
 public interface IMemoService
 {
+    /// <summary>
+    /// 現在のユーザーのメモ一覧を取得します。
+    /// </summary>
+    /// <returns>ユーザーのメモ一覧</returns>
     Task<List<Memo>> GetMyMemosAsync();
+    
+    /// <summary>
+    /// 共有されているメモ一覧を取得します。
+    /// </summary>
+    /// <returns>共有メモ一覧</returns>
     Task<List<Memo>> GetSharedMemosAsync();
+    
+    /// <summary>
+    /// 指定されたIDのメモを取得します。
+    /// </summary>
+    /// <param name="id">メモID</param>
+    /// <returns>メモ、存在しない場合はnull</returns>
     Task<Memo?> GetMemoByIdAsync(string id);
+    
+    /// <summary>
+    /// 新しいメモを作成します。
+    /// </summary>
+    /// <param name="memo">作成するメモ</param>
+    /// <returns>作成されたメモ</returns>
     Task<Memo> CreateMemoAsync(Memo memo);
+    
+    /// <summary>
+    /// 既存のメモを更新します。
+    /// </summary>
+    /// <param name="memo">更新するメモ</param>
+    /// <returns>更新されたメモ</returns>
     Task<Memo> UpdateMemoAsync(Memo memo);
+    
+    /// <summary>
+    /// 指定されたIDのメモを削除します。
+    /// </summary>
+    /// <param name="id">削除するメモのID</param>
     Task DeleteMemoAsync(string id);
+    
+    /// <summary>
+    /// メモを指定されたユーザーと共有します。
+    /// </summary>
+    /// <param name="memoId">共有するメモのID</param>
+    /// <param name="userId">共有先のユーザーID</param>
     Task ShareMemoAsync(string memoId, string userId);
+    
+    /// <summary>
+    /// メモの共有を解除します。
+    /// </summary>
+    /// <param name="memoId">対象のメモID</param>
+    /// <param name="userId">共有を解除するユーザーID</param>
     Task UnshareMemoAsync(string memoId, string userId);
 }
 
@@ -25,6 +69,9 @@ public class MemoService : IMemoService
         InitializeSampleData();
     }
 
+    /// <summary>
+    /// サンプルデータを初期化します。
+    /// </summary>
     private void InitializeSampleData()
     {
         _memos.AddRange(new[]
@@ -56,6 +103,10 @@ public class MemoService : IMemoService
         });
     }
 
+    /// <summary>
+    /// 現在のユーザーのメモ一覧を取得します。
+    /// </summary>
+    /// <returns>ユーザーのメモ一覧</returns>
     public Task<List<Memo>> GetMyMemosAsync()
     {
         var currentUser = _authService.CurrentUser;
@@ -66,6 +117,10 @@ public class MemoService : IMemoService
         return Task.FromResult(myMemos);
     }
 
+    /// <summary>
+    /// 共有されているメモ一覧を取得します。
+    /// </summary>
+    /// <returns>共有メモ一覧</returns>
     public Task<List<Memo>> GetSharedMemosAsync()
     {
         var currentUser = _authService.CurrentUser;
@@ -79,12 +134,22 @@ public class MemoService : IMemoService
         return Task.FromResult(sharedMemos);
     }
 
+    /// <summary>
+    /// 指定されたIDのメモを取得します。
+    /// </summary>
+    /// <param name="id">メモID</param>
+    /// <returns>メモ、存在しない場合はnull</returns>
     public Task<Memo?> GetMemoByIdAsync(string id)
     {
         var memo = _memos.FirstOrDefault(m => m.Id == id);
         return Task.FromResult(memo);
     }
 
+    /// <summary>
+    /// 新しいメモを作成します。
+    /// </summary>
+    /// <param name="memo">作成するメモ</param>
+    /// <returns>作成されたメモ</returns>
     public Task<Memo> CreateMemoAsync(Memo memo)
     {
         var currentUser = _authService.CurrentUser;
@@ -99,6 +164,11 @@ public class MemoService : IMemoService
         return Task.FromResult(memo);
     }
 
+    /// <summary>
+    /// 既存のメモを更新します。
+    /// </summary>
+    /// <param name="memo">更新するメモ</param>
+    /// <returns>更新されたメモ</returns>
     public Task<Memo> UpdateMemoAsync(Memo memo)
     {
         var existing = _memos.FirstOrDefault(m => m.Id == memo.Id);
@@ -112,6 +182,10 @@ public class MemoService : IMemoService
         return Task.FromResult(memo);
     }
 
+    /// <summary>
+    /// 指定されたIDのメモを削除します。
+    /// </summary>
+    /// <param name="id">削除するメモのID</param>
     public Task DeleteMemoAsync(string id)
     {
         var memo = _memos.FirstOrDefault(m => m.Id == id);
@@ -122,6 +196,11 @@ public class MemoService : IMemoService
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// メモを指定されたユーザーと共有します。
+    /// </summary>
+    /// <param name="memoId">共有するメモのID</param>
+    /// <param name="userId">共有先のユーザーID</param>
     public Task ShareMemoAsync(string memoId, string userId)
     {
         var memo = _memos.FirstOrDefault(m => m.Id == memoId);
@@ -133,6 +212,11 @@ public class MemoService : IMemoService
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// メモの共有を解除します。
+    /// </summary>
+    /// <param name="memoId">対象のメモID</param>
+    /// <param name="userId">共有を解除するユーザーID</param>
     public Task UnshareMemoAsync(string memoId, string userId)
     {
         var memo = _memos.FirstOrDefault(m => m.Id == memoId);

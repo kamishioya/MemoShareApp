@@ -4,11 +4,42 @@ namespace MemoShareApp.Services;
 
 public interface IAuthService
 {
+    /// <summary>
+    /// 現在ログインしているユーザーを取得します。
+    /// </summary>
     User? CurrentUser { get; }
+    
+    /// <summary>
+    /// ユーザーがログインしているかどうかを取得します。
+    /// </summary>
     bool IsLoggedIn { get; }
+    
+    /// <summary>
+    /// ユーザー認証を行います。
+    /// </summary>
+    /// <param name="username">ユーザー名</param>
+    /// <param name="password">パスワード</param>
+    /// <returns>ログイン成功の場合true、失敗の場合false</returns>
     Task<bool> LoginAsync(string username, string password);
+    
+    /// <summary>
+    /// ログアウトします。
+    /// </summary>
     Task LogoutAsync();
+    
+    /// <summary>
+    /// 新しいユーザーを登録します。
+    /// </summary>
+    /// <param name="username">ユーザー名</param>
+    /// <param name="email">メールアドレス</param>
+    /// <param name="password">パスワード</param>
+    /// <returns>登録成功の場合true、失敗の場合false</returns>
     Task<bool> RegisterAsync(string username, string email, string password);
+    
+    /// <summary>
+    /// 全ユーザーの一覧を取得します（現在のユーザーを除く）。
+    /// </summary>
+    /// <returns>ユーザー一覧</returns>
     Task<List<User>> GetAllUsersAsync();
 }
 
@@ -24,6 +55,9 @@ public class AuthService : IAuthService
         InitializeSampleUsers();
     }
 
+    /// <summary>
+    /// サンプルユーザーを初期化します。
+    /// </summary>
     private void InitializeSampleUsers()
     {
         _users.AddRange(new[]
@@ -45,6 +79,12 @@ public class AuthService : IAuthService
         });
     }
 
+    /// <summary>
+    /// ユーザー認証を行います。
+    /// </summary>
+    /// <param name="username">ユーザー名</param>
+    /// <param name="password">パスワード</param>
+    /// <returns>ログイン成功の場合true、失敗の場合false</returns>
     public Task<bool> LoginAsync(string username, string password)
     {
         // 簡易的なログイン（実際のアプリでは認証サーバーを使用）
@@ -57,12 +97,22 @@ public class AuthService : IAuthService
         return Task.FromResult(false);
     }
 
+    /// <summary>
+    /// ログアウトします。
+    /// </summary>
     public Task LogoutAsync()
     {
         CurrentUser = null;
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 新しいユーザーを登録します。
+    /// </summary>
+    /// <param name="username">ユーザー名</param>
+    /// <param name="email">メールアドレス</param>
+    /// <param name="password">パスワード</param>
+    /// <returns>登録成功の場合true、失敗の場合false</returns>
     public Task<bool> RegisterAsync(string username, string email, string password)
     {
         if (_users.Any(u => u.Username == username || u.Email == email))
@@ -81,6 +131,10 @@ public class AuthService : IAuthService
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// 全ユーザーの一覧を取得します（現在のユーザーを除く）。
+    /// </summary>
+    /// <returns>ユーザー一覧</returns>
     public Task<List<User>> GetAllUsersAsync()
     {
         return Task.FromResult(_users.Where(u => u.Id != CurrentUser?.Id).ToList());
