@@ -110,7 +110,13 @@ public class MemoDetailViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(MemoTitle))
         {
-            await Application.Current!.MainPage!.DisplayAlert("エラー", "タイトルを入力してください", "OK");
+            var currentPage = Application.Current?.Windows.Count > 0 
+                ? Application.Current.Windows[0].Page 
+                : null;
+            if (currentPage != null)
+            {
+                await currentPage.DisplayAlertAsync("エラー", "タイトルを入力してください", "OK");
+            }
             return;
         }
 
@@ -148,7 +154,12 @@ public class MemoDetailViewModel : BaseViewModel
     {
         if (_currentMemo == null) return;
 
-        bool confirm = await Application.Current!.MainPage!.DisplayAlert(
+        var currentPage = Application.Current?.Windows.Count > 0 
+            ? Application.Current.Windows[0].Page 
+            : null;
+        if (currentPage == null) return;
+
+        bool confirm = await currentPage.DisplayAlertAsync(
             "確認",
             "このメモを削除しますか？",
             "削除",
@@ -166,9 +177,16 @@ public class MemoDetailViewModel : BaseViewModel
         if (user == null || _currentMemo == null) return;
 
         await _memoService.ShareMemoAsync(_currentMemo.Id, user.Id);
-        await Application.Current!.MainPage!.DisplayAlert(
-            "共有完了",
-            $"{user.DisplayName}さんとメモを共有しました",
-            "OK");
+        
+        var currentPage = Application.Current?.Windows.Count > 0 
+            ? Application.Current.Windows[0].Page 
+            : null;
+        if (currentPage != null)
+        {
+            await currentPage.DisplayAlertAsync(
+                "共有完了",
+                $"{user.DisplayName}さんとメモを共有しました",
+                "OK");
+        }
     }
 }

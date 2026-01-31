@@ -4,7 +4,7 @@ using MemoShareApp.ViewModels;
 using MemoShareApp.Views;
 using MemoShareApp.Converters;
 using MemoShareApp.Data;
-using SQLitePCL;
+using MemoShareApp.Helpers;
 
 namespace MemoShareApp;
 
@@ -12,9 +12,6 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
-		// Initialize SQLite for all platforms
-		Batteries_V2.Init();
-		
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
@@ -24,29 +21,25 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 			});
 
-		// Register Database
-		string dbPath = Path.Combine(FileSystem.AppDataDirectory, "memoshare.db3");
-		
-		// デバッグ: データベースパスをログ出力
-		System.Diagnostics.Debug.WriteLine($"=== Database Path ===");
-		System.Diagnostics.Debug.WriteLine(dbPath);
-		System.Diagnostics.Debug.WriteLine($"====================");
-		
-		builder.Services.AddSingleton(s => new AppDatabase(dbPath));
-
-		// Register HttpClient
+		// Register HttpClient for API
 		builder.Services.AddHttpClient<IMemoService, ApiMemoService>(client =>
 		{
-			// TODO: appsettings.jsonまたは環境変数から取得
-			client.BaseAddress = new Uri("http://your-vps-domain.com:5000/api/");
-			client.Timeout = TimeSpan.FromSeconds(30);
+			// ローカルDocker環境用
+			// Windows: localhost, Androidエミュレータ: 10.0.2.2, 実機: PCのIPアドレス
+#if ANDROID
+			client.BaseAddress = new Uri("http://10.0.2.2:5000/api/");
+#else
+			client.BaseAddress = new Uri("http://localhost:5000/api/");
+#endif
+			client.Timeout = TimeSpan.FromSeconds(10);
 		});
+
+		// Register Database
+		builder.Services.AddSingleton<AppDatabase>(sp => 
+			new AppDatabase(DatabasePathHelper.GetDatabasePath()));
 
 		// Register Services
 		builder.Services.AddSingleton<IAuthService, AuthService>();
-		// Note: ApiMemoServiceはHttpClientで登録済み
-		// ローカルのみ使用する場合は以下をコメント解除
-		// builder.Services.AddSingleton<IMemoService, MemoService>();
 
 		// Register ViewModels
 		builder.Services.AddTransient<LoginViewModel>();
@@ -61,6 +54,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<MemoListPage>();
 		builder.Services.AddTransient<SharedMemoListPage>();
 		builder.Services.AddTransient<MemoDetailPage>();
+		builder.Services.AddTransient<AppShell>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

@@ -88,11 +88,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// データベース初期化
+// データベース初期化（テーブルがなければ作成）
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
-    await dbContext.Database.MigrateAsync();
+    // 開発環境: テーブルを自動作成（マイグレーション不要）
+    await dbContext.Database.EnsureCreatedAsync();
 }
 
 // Swagger（開発環境のみ）

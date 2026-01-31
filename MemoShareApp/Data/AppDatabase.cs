@@ -19,89 +19,11 @@ public class AppDatabase
         await _database.CreateTableAsync<User>();
         await _database.CreateTableAsync<Memo>();
         await _database.CreateTableAsync<MemoShare>();
-        
-        // サンプルデータの追加（初回のみ）
-        var userCount = await _database.Table<User>().CountAsync();
-        if (userCount == 0)
-        {
-            await SeedSampleDataAsync();
-        }
     }
 
     private async Task EnsureInitializedAsync()
     {
         await _initializationTask;
-    }
-
-    private async Task SeedSampleDataAsync()
-    {
-        // サンプルユーザー
-        var users = new[]
-        {
-            new User
-            {
-                Id = "user1",
-                Username = "test1",
-                Email = "test1@example.com",
-                DisplayName = "テストユーザー1"
-            },
-            new User
-            {
-                Id = "user2",
-                Username = "test2",
-                Email = "test2@example.com",
-                DisplayName = "テストユーザー2"
-            }
-        };
-
-        foreach (var user in users)
-        {
-            await _database.InsertAsync(user);
-        }
-
-        // サンプルメモ
-        var memos = new[]
-        {
-            new Memo
-            {
-                Id = Guid.NewGuid().ToString(),
-                Title = "買い物リスト",
-                Content = "牛乳、卵、パン、野菜",
-                AuthorId = "user1",
-                AuthorName = "テストユーザー1",
-                IsShared = true
-            },
-            new Memo
-            {
-                Id = Guid.NewGuid().ToString(),
-                Title = "会議メモ",
-                Content = "次回の会議は来週月曜日",
-                AuthorId = "user1",
-                AuthorName = "テストユーザー1",
-                IsShared = false
-            },
-            new Memo
-            {
-                Id = Guid.NewGuid().ToString(),
-                Title = "共有メモ",
-                Content = "これは共有されたメモです",
-                AuthorId = "user2",
-                AuthorName = "テストユーザー2",
-                IsShared = true
-            }
-        };
-
-        foreach (var memo in memos)
-        {
-            await _database.InsertAsync(memo);
-        }
-
-        // 共有設定
-        await _database.InsertAsync(new MemoShare
-        {
-            MemoId = memos[2].Id,
-            UserId = "user1"
-        });
     }
 
     // User operations
@@ -182,6 +104,42 @@ public class AppDatabase
     {
         await EnsureInitializedAsync();
         return await _database.DeleteAsync(memo);
+    }
+
+    public async Task DeleteMemoAsync(string id)
+    {
+        await EnsureInitializedAsync();
+        var memo = await GetMemoByIdAsync(id);
+        if (memo != null)
+        {
+            await _database.DeleteAsync(memo);
+        }
+    }
+
+    public async Task SaveMemoAsync(Memo memo)
+    {
+        await EnsureInitializedAsync();
+        var existing = await GetMemoByIdAsync(memo.Id);
+        if (existing != null)
+        {
+            await _database.UpdateAsync(memo);
+        }
+        else
+        {
+            await _database.InsertAsync(memo);
+        }
+    }
+
+    public async Task<List<Memo>> GetSharedMemosAsync(string userId)
+    {
+        await EnsureInitializedAsync();
+        // Get memo IDs shared with this user
+        var shares = await _database.Table<MemoShare>().Where(ms => ms.UserId == userId).ToListAsync();
+        var sharedMemoIds = shares.Select(s => s.MemoId).ToList();
+        
+        // Get public memos (IsShared = true) from other users
+        var allMemos = await _database.Table<Memo>().ToListAsync();
+        return allMemos.Where(m => m.IsShared && m.AuthorId != userId || sharedMemoIds.Contains(m.Id)).ToList();
     }
 
     // MemoShare operations

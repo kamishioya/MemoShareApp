@@ -45,6 +45,21 @@
 		<TrimMode>partial</TrimMode>
 		<AndroidUseInterpreter>false</AndroidUseInterpreter>
 		<RunAOTCompilation>false</RunAOTCompilation>
+		<AndroidHttpClientHandlerType>System.Net.Http.SocketsHttpHandler, System.Net.Http</AndroidHttpClientHandlerType>
+		<!-- Glideの問題を解決するための設定 -->
+		<AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+		<!-- HWUI/Glideスレッド問題の軽減 -->
+		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+		<!-- デバッグの安定性向上 -->
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>portable</DebugType>
+		<!-- Glideイメージローダーの問題回避 -->
+		<AndroidGlideVersion>4.16.0</AndroidGlideVersion>
+		<AndroidEnableSGenConcurrent>false</AndroidEnableSGenConcurrent>
+		<!-- HWUI スレッド問題の追加対策 -->
+		<AndroidEnablePreloadAssemblies>true</AndroidEnablePreloadAssemblies>
+		<!-- Glide の pthread_mutex_lock クラッシュ対策 -->
+		<_AndroidEnableBackgroundTrimming>false</_AndroidEnableBackgroundTrimming>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -68,6 +83,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
 		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
 	</ItemGroup>

@@ -9,4 +9,20 @@
   <assembly fullname="MemoShareApp">
     <type fullname="*" preserve="all" />
   </assembly>
+  <!-- MAUI Controls (SwipeView等) で使用されるハンドラー -->
+  <assembly fullname="Microsoft.Maui.Controls">
+    <type fullname="Microsoft.Maui.Controls.SwipeView" preserve="all" />
+    <type fullname="Microsoft.Maui.Controls.SwipeItem" preserve="all" />
+    <type fullname="Microsoft.Maui.Controls.SwipeItems" preserve="all" />
+    <type fullname="Microsoft.Maui.Controls.Image" preserve="all" />
+    <type fullname="Microsoft.Maui.Controls.ImageSource" preserve="all" />
+  </assembly>
+  <assembly fullname="Microsoft.Maui.Controls.Compatibility">
+    <type fullname="*" preserve="all" />
+  </assembly>
+  <!-- Glide/Image関連の保持 -->
+  <assembly fullname="Microsoft.Maui">
+    <type fullname="Microsoft.Maui.Platform.ImageViewHandler" preserve="all" />
+    <type fullname="Microsoft.Maui.Platform.ImageSourcePartLoader" preserve="all" />
+  </assembly>
 </linker>

@@ -1,37 +1,30 @@
-?using MemoShareApp.Models;
+ï»¿using MemoShareApp.Models;
 using MemoShareApp.Models.Api;
-using MemoShareApp.Data;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 
 namespace MemoShareApp.Services;
 
 /// <summary>
-/// APIŒo—R‚Åƒƒ‚‚ğŠÇ—‚·‚éƒT[ƒrƒXiƒIƒtƒ‰ƒCƒ““¯Šú‘Î‰j
+/// APIçµŒç”±ã§ãƒ¡ãƒ¢ã‚’ç®¡ç†ã™ã‚‹ã‚µãƒ¼ãƒ“ã‚¹ï¼ˆAPIå°‚ç”¨ã€ãƒ­ãƒ¼ã‚«ãƒ«DBä¸ä½¿ç”¨ï¼‰
 /// </summary>
 public class ApiMemoService : IMemoService
 {
     private readonly HttpClient _httpClient;
-    private readonly AppDatabase _localDatabase;
     private readonly IAuthService _authService;
-    private readonly string _apiBaseUrl;
 
-    public ApiMemoService(HttpClient httpClient, AppDatabase localDatabase, IAuthService authService)
+    public ApiMemoService(HttpClient httpClient, IAuthService authService)
     {
         _httpClient = httpClient;
-        _localDatabase = localDatabase;
         _authService = authService;
-        
-        // TODO: appsettings.json‚©‚çæ“¾‚·‚é‚æ‚¤‚É•ÏX
-        _apiBaseUrl = "http://your-vps-domain.com:5000/api";
-        _httpClient.BaseAddress = new Uri(_apiBaseUrl);
+        // BaseAddressã¯MauiProgram.csã§è¨­å®šæ¸ˆã¿
     }
 
     private void SetAuthToken()
     {
-        // –{”ÔŠÂ‹«‚Å‚ÍSecureStorage‚©‚çƒg[ƒNƒ“‚ğæ“¾
+        // æœ¬ç•ªç’°å¢ƒã§ã¯SecureStorageã‹ã‚‰ãƒˆãƒ¼ã‚¯ãƒ³ã‚’å–å¾—
         // var token = await SecureStorage.GetAsync("auth_token");
-        var token = _authService.CurrentUser?.Id; // ‰¼À‘•
+        var token = _authService.CurrentUser?.Id; // ä»®å®Ÿè£…
         if (!string.IsNullOrEmpty(token))
         {
             _httpClient.DefaultRequestHeaders.Authorization = 
@@ -39,243 +32,184 @@ public class ApiMemoService : IMemoService
         }
     }
 
-    private async Task<bool> IsOnlineAsync()
-    {
-        try
-        {
-            var current = Connectivity.NetworkAccess;
-            if (current != NetworkAccess.Internet)
-                return false;
-
-            // ƒT[ƒo[‚Ö‚ÌpingƒeƒXƒg
-            var response = await _httpClient.GetAsync("/health", 
-                new CancellationTokenSource(TimeSpan.FromSeconds(3)).Token);
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     /// <summary>
-    /// Œ»İ‚Ìƒ†[ƒU[‚Ìƒƒ‚ˆê——‚ğæ“¾iƒIƒ“ƒ‰ƒCƒ“—DæAƒIƒtƒ‰ƒCƒ“‚Íƒ[ƒJƒ‹j
+    /// ç¾åœ¨ã®ãƒ¦ãƒ¼ã‚¶ãƒ¼ã®ãƒ¡ãƒ¢ä¸€è¦§ã‚’å–å¾—
     /// </summary>
     public async Task<List<Memo>> GetMyMemosAsync()
     {
-        var isOnline = await IsOnlineAsync();
+        System.Diagnostics.Debug.WriteLine("[GetMyMemosAsync] Starting...");
 
-        if (isOnline)
+        try
         {
-            try
+            SetAuthToken();
+            System.Diagnostics.Debug.WriteLine("[GetMyMemosAsync] Fetching from API...");
+            var apiMemos = await _httpClient.GetFromJsonAsync<List<ApiMemoDto>>("memos/my");
+            
+            if (apiMemos != null)
             {
-                SetAuthToken();
-                var apiMemos = await _httpClient.GetFromJsonAsync<List<ApiMemoDto>>("memos/my");
-                
-                if (apiMemos != null)
-                {
-                    // API‚©‚çæ“¾‚µ‚½ƒf[ƒ^‚ğƒ[ƒJƒ‹‚É“¯Šú
-                    var memos = apiMemos.Select(ConvertFromApiDto).ToList();
-                    await SyncLocalMemosAsync(memos);
-                    return memos;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
-                // ƒIƒ“ƒ‰ƒCƒ“‚¾‚ªAPIƒGƒ‰[‚Ìê‡‚Íƒ[ƒJƒ‹‚ÉƒtƒH[ƒ‹ƒoƒbƒN
+                System.Diagnostics.Debug.WriteLine($"[GetMyMemosAsync] Got {apiMemos.Count} memos from API");
+                return apiMemos.Select(ConvertFromApiDto).ToList();
             }
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®å–å¾—ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
 
-        // ƒIƒtƒ‰ƒCƒ“‚Ü‚½‚ÍAPI¸”s‚Íƒ[ƒJƒ‹‚©‚çæ“¾
-        return await _localDatabase.GetMemosByAuthorAsync(_authService.CurrentUser?.Id ?? "");
+        return new List<Memo>();
     }
 
     /// <summary>
-    /// ‹¤—L‚³‚ê‚Ä‚¢‚éƒƒ‚ˆê——‚ğæ“¾
+    /// å…±æœ‰ã•ã‚Œã¦ã„ã‚‹ãƒ¡ãƒ¢ä¸€è¦§ã‚’å–å¾—
     /// </summary>
     public async Task<List<Memo>> GetSharedMemosAsync()
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (isOnline)
+        try
         {
-            try
+            SetAuthToken();
+            System.Diagnostics.Debug.WriteLine("[GetSharedMemosAsync] Fetching from API...");
+            var apiMemos = await _httpClient.GetFromJsonAsync<List<ApiMemoDto>>("memos/shared");
+            
+            if (apiMemos != null)
             {
-                SetAuthToken();
-                var apiMemos = await _httpClient.GetFromJsonAsync<List<ApiMemoDto>>("memos/shared");
-                
-                if (apiMemos != null)
-                {
-                    return apiMemos.Select(ConvertFromApiDto).ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[GetSharedMemosAsync] Got {apiMemos.Count} memos from API");
+                return apiMemos.Select(ConvertFromApiDto).ToList();
             }
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+            throw new InvalidOperationException($"å…±æœ‰ãƒ¡ãƒ¢ã®å–å¾—ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
 
-        // ‹¤—Lƒƒ‚‚ÍƒIƒ“ƒ‰ƒCƒ“‚Ì‚İ‘Î‰iƒ[ƒJƒ‹‚Å‚Í•¡G‚È‚½‚ßj
-        var currentUser = _authService.CurrentUser;
-        if (currentUser == null)
-            return new List<Memo>();
-
-        return await _localDatabase.GetSharedMemosAsync(currentUser.Id);
+        return new List<Memo>();
     }
 
     /// <summary>
-    /// w’è‚³‚ê‚½ID‚Ìƒƒ‚‚ğæ“¾
+    /// æŒ‡å®šã•ã‚ŒãŸIDã®ãƒ¡ãƒ¢ã‚’å–å¾—
     /// </summary>
     public async Task<Memo?> GetMemoByIdAsync(string id)
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (isOnline)
+        try
         {
-            try
+            SetAuthToken();
+            System.Diagnostics.Debug.WriteLine($"[GetMemoByIdAsync] Fetching memo {id} from API...");
+            var apiMemo = await _httpClient.GetFromJsonAsync<ApiMemoDto>($"memos/{id}");
+            
+            if (apiMemo != null)
             {
-                SetAuthToken();
-                var apiMemo = await _httpClient.GetFromJsonAsync<ApiMemoDto>($"memos/{id}");
-                
-                if (apiMemo != null)
-                {
-                    return ConvertFromApiDto(apiMemo);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+                return ConvertFromApiDto(apiMemo);
             }
         }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®å–å¾—ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
 
-        return await _localDatabase.GetMemoByIdAsync(id);
+        return null;
     }
 
     /// <summary>
-    /// V‚µ‚¢ƒƒ‚‚ğì¬
+    /// æ–°ã—ã„ãƒ¡ãƒ¢ã‚’ä½œæˆ
     /// </summary>
     public async Task<Memo> CreateMemoAsync(Memo memo)
     {
-        var isOnline = await IsOnlineAsync();
+        System.Diagnostics.Debug.WriteLine("[CreateMemoAsync] Starting...");
 
-        if (isOnline)
+        try
         {
-            try
+            SetAuthToken();
+            var request = new CreateMemoRequest
             {
-                SetAuthToken();
-                var request = new CreateMemoRequest
-                {
-                    Title = memo.Title,
-                    Content = memo.Content,
-                    IsShared = memo.IsShared
-                };
+                Title = memo.Title,
+                Content = memo.Content,
+                IsShared = memo.IsShared
+            };
 
-                var response = await _httpClient.PostAsJsonAsync("memos", request);
-                response.EnsureSuccessStatusCode();
+            System.Diagnostics.Debug.WriteLine("[CreateMemoAsync] Posting to API...");
+            var response = await _httpClient.PostAsJsonAsync("memos", request);
+            response.EnsureSuccessStatusCode();
 
-                var apiMemo = await response.Content.ReadFromJsonAsync<ApiMemoDto>();
-                if (apiMemo != null)
-                {
-                    var createdMemo = ConvertFromApiDto(apiMemo);
-                    await _localDatabase.SaveMemoAsync(createdMemo);
-                    return createdMemo;
-                }
-            }
-            catch (Exception ex)
+            var apiMemo = await response.Content.ReadFromJsonAsync<ApiMemoDto>();
+            if (apiMemo != null)
             {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
-                // ƒIƒ“ƒ‰ƒCƒ“‚¾‚ªƒGƒ‰[‚Ìê‡‚Íˆê’Uƒ[ƒJƒ‹•Û‘¶iŒã‚Å“¯Šúj
+                var createdMemo = ConvertFromApiDto(apiMemo);
+                System.Diagnostics.Debug.WriteLine($"[CreateMemoAsync] Created via API with Id: {createdMemo.Id}");
+                return createdMemo;
             }
+
+            throw new InvalidOperationException("APIã‹ã‚‰ã®å¿œç­”ãŒç©ºã§ã™");
         }
-
-        // ƒIƒtƒ‰ƒCƒ“‚Íƒ[ƒJƒ‹‚É•Û‘¶
-        memo.Id = Guid.NewGuid().ToString();
-        memo.CreatedAt = DateTime.UtcNow;
-        memo.UpdatedAt = DateTime.UtcNow;
-        await _localDatabase.SaveMemoAsync(memo);
-        return memo;
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CreateMemoAsync API Error] {ex.Message}");
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®ä½œæˆã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
-    /// Šù‘¶‚Ìƒƒ‚‚ğXV
+    /// æ—¢å­˜ã®ãƒ¡ãƒ¢ã‚’æ›´æ–°
     /// </summary>
     public async Task<Memo> UpdateMemoAsync(Memo memo)
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (isOnline)
+        try
         {
-            try
+            SetAuthToken();
+            var request = new UpdateMemoRequest
             {
-                SetAuthToken();
-                var request = new UpdateMemoRequest
-                {
-                    Title = memo.Title,
-                    Content = memo.Content,
-                    IsShared = memo.IsShared
-                };
+                Title = memo.Title,
+                Content = memo.Content,
+                IsShared = memo.IsShared
+            };
 
-                var response = await _httpClient.PutAsJsonAsync($"memos/{memo.Id}", request);
-                response.EnsureSuccessStatusCode();
+            System.Diagnostics.Debug.WriteLine($"[UpdateMemoAsync] Updating memo {memo.Id} via API...");
+            var response = await _httpClient.PutAsJsonAsync($"memos/{memo.Id}", request);
+            response.EnsureSuccessStatusCode();
 
-                var apiMemo = await response.Content.ReadFromJsonAsync<ApiMemoDto>();
-                if (apiMemo != null)
-                {
-                    var updatedMemo = ConvertFromApiDto(apiMemo);
-                    await _localDatabase.SaveMemoAsync(updatedMemo);
-                    return updatedMemo;
-                }
-            }
-            catch (Exception ex)
+            var apiMemo = await response.Content.ReadFromJsonAsync<ApiMemoDto>();
+            if (apiMemo != null)
             {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+                var updatedMemo = ConvertFromApiDto(apiMemo);
+                System.Diagnostics.Debug.WriteLine($"[UpdateMemoAsync] Updated via API");
+                return updatedMemo;
             }
+
+            throw new InvalidOperationException("APIã‹ã‚‰ã®å¿œç­”ãŒç©ºã§ã™");
         }
-
-        // ƒIƒtƒ‰ƒCƒ“‚Íƒ[ƒJƒ‹XV
-        memo.UpdatedAt = DateTime.UtcNow;
-        await _localDatabase.SaveMemoAsync(memo);
-        return memo;
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®æ›´æ–°ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
-    /// w’è‚³‚ê‚½ID‚Ìƒƒ‚‚ğíœ
+    /// æŒ‡å®šã•ã‚ŒãŸIDã®ãƒ¡ãƒ¢ã‚’å‰Šé™¤
     /// </summary>
     public async Task DeleteMemoAsync(string id)
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (isOnline)
+        try
         {
-            try
-            {
-                SetAuthToken();
-                var response = await _httpClient.DeleteAsync($"memos/{id}");
-                response.EnsureSuccessStatusCode();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
-            }
+            SetAuthToken();
+            System.Diagnostics.Debug.WriteLine($"[DeleteMemoAsync] Deleting memo {id} via API...");
+            var response = await _httpClient.DeleteAsync($"memos/{id}");
+            response.EnsureSuccessStatusCode();
+            System.Diagnostics.Debug.WriteLine($"[DeleteMemoAsync] Deleted successfully");
         }
-
-        // ƒ[ƒJƒ‹‚©‚ç‚àíœ
-        await _localDatabase.DeleteMemoAsync(id);
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®å‰Šé™¤ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
-    /// ƒƒ‚‚ğw’è‚³‚ê‚½ƒ†[ƒU[‚Æ‹¤—L
+    /// ãƒ¡ãƒ¢ã‚’æŒ‡å®šã•ã‚ŒãŸãƒ¦ãƒ¼ã‚¶ãƒ¼ã¨å…±æœ‰
     /// </summary>
     public async Task ShareMemoAsync(string memoId, string userId)
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (!isOnline)
-        {
-            throw new InvalidOperationException("‹¤—L‹@”\‚ÍƒIƒ“ƒ‰ƒCƒ“‚Ì‚İ—˜—p‰Â”\‚Å‚·");
-        }
-
         try
         {
             SetAuthToken();
@@ -284,43 +218,40 @@ public class ApiMemoService : IMemoService
                 SharedWithUserId = userId
             };
 
+            System.Diagnostics.Debug.WriteLine($"[ShareMemoAsync] Sharing memo {memoId} with user {userId}...");
             var response = await _httpClient.PostAsJsonAsync($"memos/{memoId}/share", request);
             response.EnsureSuccessStatusCode();
+            System.Diagnostics.Debug.WriteLine($"[ShareMemoAsync] Shared successfully");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
-            throw;
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®å…±æœ‰ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// ƒƒ‚‚Ì‹¤—L‚ğ‰ğœ
+    /// ãƒ¡ãƒ¢ã®å…±æœ‰ã‚’è§£é™¤
     /// </summary>
     public async Task UnshareMemoAsync(string memoId, string userId)
     {
-        var isOnline = await IsOnlineAsync();
-
-        if (!isOnline)
-        {
-            throw new InvalidOperationException("‹¤—L‰ğœ‚ÍƒIƒ“ƒ‰ƒCƒ“‚Ì‚İ—˜—p‰Â”\‚Å‚·");
-        }
-
         try
         {
             SetAuthToken();
+            System.Diagnostics.Debug.WriteLine($"[UnshareMemoAsync] Unsharing memo {memoId} from user {userId}...");
             var response = await _httpClient.DeleteAsync($"memos/{memoId}/share/{userId}");
             response.EnsureSuccessStatusCode();
+            System.Diagnostics.Debug.WriteLine($"[UnshareMemoAsync] Unshared successfully");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[API Error] {ex.Message}");
-            throw;
+            throw new InvalidOperationException($"ãƒ¡ãƒ¢ã®å…±æœ‰è§£é™¤ã«å¤±æ•—ã—ã¾ã—ãŸ: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// API‚ÌDTO‚©‚çƒAƒvƒŠ‚ÌModel‚É•ÏŠ·
+    /// APIã®DTOã‹ã‚‰ã‚¢ãƒ—ãƒªã®Modelã«å¤‰æ›
     /// </summary>
     private Memo ConvertFromApiDto(ApiMemoDto apiDto)
     {
@@ -334,23 +265,5 @@ public class ApiMemoService : IMemoService
             CreatedAt = apiDto.CreatedAt,
             UpdatedAt = apiDto.UpdatedAt
         };
-    }
-
-    /// <summary>
-    /// ƒ[ƒJƒ‹ƒf[ƒ^ƒx[ƒX‚ğ“¯Šú
-    /// </summary>
-    private async Task SyncLocalMemosAsync(List<Memo> apiMemos)
-    {
-        try
-        {
-            foreach (var memo in apiMemos)
-            {
-                await _localDatabase.SaveMemoAsync(memo);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Sync Error] {ex.Message}");
-        }
     }
 }

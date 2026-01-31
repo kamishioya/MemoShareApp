@@ -5,7 +5,8 @@
              xmlns:models="clr-namespace:MemoShareApp.Models"
              x:Class="MemoShareApp.Views.SharedMemoListPage"
              x:DataType="viewmodels:SharedMemoListViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True">
 
     <RefreshView IsRefreshing="{Binding IsBusy}"
                  Command="{Binding RefreshCommand}">

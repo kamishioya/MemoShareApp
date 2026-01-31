@@ -6,6 +6,7 @@ namespace MemoShareApp.ViewModels;
 public class RegisterViewModel : BaseViewModel
 {
     private readonly IAuthService _authService;
+    private readonly IServiceProvider _serviceProvider;
     private string _username = string.Empty;
     private string _email = string.Empty;
     private string _password = string.Empty;
@@ -45,9 +46,10 @@ public class RegisterViewModel : BaseViewModel
     public ICommand RegisterCommand { get; }
     public ICommand GoToLoginCommand { get; }
 
-    public RegisterViewModel(IAuthService authService)
+    public RegisterViewModel(IAuthService authService, IServiceProvider serviceProvider)
     {
         _authService = authService;
+        _serviceProvider = serviceProvider;
         Title = "新規登録";
         RegisterCommand = new Command(async () => await RegisterAsync());
         GoToLoginCommand = new Command(async () => await GoToLoginAsync());
@@ -79,7 +81,11 @@ public class RegisterViewModel : BaseViewModel
             var success = await _authService.RegisterAsync(Username, Email, Password);
             if (success)
             {
-                Application.Current!.MainPage = new AppShell();
+                if (Application.Current?.Windows.Count > 0)
+                {
+                    var appShell = _serviceProvider.GetRequiredService<AppShell>();
+                    Application.Current.Windows[0].Page = appShell;
+                }
             }
             else
             {
@@ -94,6 +100,12 @@ public class RegisterViewModel : BaseViewModel
 
     private async Task GoToLoginAsync()
     {
-        await Shell.Current.GoToAsync("..");
+        var currentPage = Application.Current?.Windows.Count > 0 
+            ? Application.Current.Windows[0].Page 
+            : null;
+        if (currentPage is NavigationPage navigationPage)
+        {
+            await navigationPage.PopAsync();
+        }
     }
 }

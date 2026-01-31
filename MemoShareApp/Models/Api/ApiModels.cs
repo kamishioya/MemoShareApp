@@ -1,4 +1,4 @@
-?namespace MemoShareApp.Models.Api;
+namespace MemoShareApp.Models.Api;
 
 /// <summary>
 /// API’ÊM—p‚ÌDTOƒ‚ƒfƒ‹

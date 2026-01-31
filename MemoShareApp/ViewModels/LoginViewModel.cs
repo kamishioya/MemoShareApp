@@ -7,6 +7,7 @@ namespace MemoShareApp.ViewModels;
 public class LoginViewModel : BaseViewModel
 {
     private readonly IAuthService _authService;
+    private readonly IServiceProvider _serviceProvider;
     private string _username = string.Empty;
     private string _password = string.Empty;
     private string _errorMessage = string.Empty;
@@ -32,9 +33,10 @@ public class LoginViewModel : BaseViewModel
     public ICommand LoginCommand { get; }
     public ICommand GoToRegisterCommand { get; }
 
-    public LoginViewModel(IAuthService authService)
+    public LoginViewModel(IAuthService authService, IServiceProvider serviceProvider)
     {
         _authService = authService;
+        _serviceProvider = serviceProvider;
         Title = "ログイン";
         LoginCommand = new Command(async () => await LoginAsync());
         GoToRegisterCommand = new Command(async () => await GoToRegisterAsync());
@@ -58,7 +60,11 @@ public class LoginViewModel : BaseViewModel
             var success = await _authService.LoginAsync(Username, Password);
             if (success)
             {
-                Application.Current!.MainPage = new AppShell();
+                if (Application.Current?.Windows.Count > 0)
+                {
+                    var appShell = _serviceProvider.GetRequiredService<AppShell>();
+                    Application.Current.Windows[0].Page = appShell;
+                }
             }
             else
             {
@@ -73,6 +79,13 @@ public class LoginViewModel : BaseViewModel
 
     private async Task GoToRegisterAsync()
     {
-        await Shell.Current.GoToAsync(nameof(RegisterPage));
+        var registerPage = _serviceProvider.GetRequiredService<RegisterPage>();
+        var currentPage = Application.Current?.Windows.Count > 0 
+            ? Application.Current.Windows[0].Page 
+            : null;
+        if (currentPage is NavigationPage navigationPage)
+        {
+            await navigationPage.PushAsync(registerPage);
+        }
     }
 }

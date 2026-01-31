@@ -5,10 +5,11 @@
              xmlns:models="clr-namespace:MemoShareApp.Models"
              x:Class="MemoShareApp.Views.MemoListPage"
              x:DataType="viewmodels:MemoListViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="True">
 
     <ContentPage.ToolbarItems>
-        <ToolbarItem Text="追加" Command="{Binding AddMemoCommand}" IconImageSource="add.png"/>
+        <ToolbarItem Text="追加" Command="{Binding AddMemoCommand}"/>
         <ToolbarItem Text="ログアウト" Command="{Binding LogoutCommand}"/>
     </ContentPage.ToolbarItems>
 

@@ -68,7 +68,12 @@ public class MemoListViewModel : BaseViewModel
     {
         if (memo == null) return;
         
-        bool confirm = await Application.Current!.MainPage!.DisplayAlert(
+        var currentPage = Application.Current?.Windows.Count > 0 
+            ? Application.Current.Windows[0].Page 
+            : null;
+        if (currentPage == null) return;
+        
+        bool confirm = await currentPage.DisplayAlertAsync(
             "確認", 
             "このメモを削除しますか？", 
             "削除", 
@@ -84,7 +89,10 @@ public class MemoListViewModel : BaseViewModel
     private async Task LogoutAsync()
     {
         await _authService.LogoutAsync();
-        Application.Current!.MainPage = new NavigationPage(
-            App.Current!.Handler!.MauiContext!.Services.GetRequiredService<LoginPage>());
+        if (Application.Current?.Windows.Count > 0)
+        {
+            Application.Current.Windows[0].Page = new NavigationPage(
+                App.Current!.Handler!.MauiContext!.Services.GetRequiredService<LoginPage>());
+        }
     }
 }

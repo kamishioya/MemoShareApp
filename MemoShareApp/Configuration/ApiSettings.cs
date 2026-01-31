@@ -1,4 +1,4 @@
-?namespace MemoShareApp.Configuration;
+namespace MemoShareApp.Configuration;
 
 /// <summary>
 /// APIê›íË
